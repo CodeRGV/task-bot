@@ -28,8 +28,8 @@ assigned
 ## Getting Started
 > git clone git@github.com/CodeRGV/task-bot.git
 > cd task-bot
-> git checkout develop
 > npm install
 > cp .env.example .env
 > # email support@codergv.org for .env settings
+> rhc set-env .env taskbot # if you're using openshift
 > node bot.js
