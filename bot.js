@@ -6,7 +6,7 @@ var fecha = require('fecha');
 require('dotenv').config();
 
 var Botkit = require('botkit');
-var firebase = require('botkit/lib/storage/firebase_storage');
+var firebase = require('./storage/firebase.js');
 
 var DEBUG = true,
   ALL = 'direct_message,direct_mention',
@@ -15,7 +15,6 @@ var DEBUG = true,
   CLIENT_ID = process.env.CLIENT_ID,
   CLIENT_SECRET = process.env.CLIENT_SECRET,
   TEAM_ID = process.env.TEAM_ID;
-
 
 var express = require('express');
 var app = express();
