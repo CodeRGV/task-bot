@@ -3,8 +3,6 @@ var os = require('os');
 var date = require('date.js');
 var fecha = require('fecha');
 
-require('dotenv').config();
-
 var Botkit = require('botkit');
 var firebase = require('./storage/firebase.js');
 
@@ -15,19 +13,6 @@ var DEBUG = true,
   CLIENT_ID = process.env.CLIENT_ID,
   CLIENT_SECRET = process.env.CLIENT_SECRET,
   TEAM_ID = process.env.TEAM_ID;
-
-var express = require('express');
-var app = express();
-var http = require('http');
-
-app.set('port', process.env.OPENSHIFT_NODEJS_PORT || process.env.PORT || 3002);
-app.set('ip', process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1");
-
-
-http.createServer(app).listen(app.get('port') ,app.get('ip'), function () {
-    console.log("✔ Express server listening at %s:%d ", app.get('ip'),app.get('port'));
-    server();
-});
 
 var controller = Botkit.slackbot({
   debug: DEBUG,
