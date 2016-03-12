@@ -1,35 +1,43 @@
+require('dotenv').config();
+var config = (function(env){
+	return function(key, value){
+		return env.get(key, value) || process.env[key];
+	};
+})(require('cloud-env'));
 
 var os = require('os');
 var date = require('date.js');
 var fecha = require('fecha');
 var Keen = require('keen-js');
+var os = require("os");
 
 var client = new Keen({
-	projectId: process.env.KEEN_ID,
-	writeKey: process.env.KEEN_WRITE,
-	readKey: process.env.KEEN_READ
+	projectId: config('KEEN_ID'),
+	writeKey: config('KEEN_WRITE'),
+	readKey: config('KEEN_READ')
 });
 
 var Botkit = require('botkit');
 var firebase = require('./storage/firebase.js');
 
-var DEBUG = true,
+var DEBUG = os.hostname().indexOf('rhcloud') < 0,
 	ALL = 'direct_message,direct_mention',
-	TOKEN = process.env.TOKEN,
-	FIREBASE = process.env.FIREBASE,
-	CLIENT_ID = process.env.CLIENT_ID,
-	CLIENT_SECRET = process.env.CLIENT_SECRET,
-	TEAM_ID = process.env.TEAM_ID;
+	TOKEN = config('TOKEN'),
+	FIREBASE = config('FIREBASE'),
+	CLIENT_ID = config('CLIENT_ID'),
+	CLIENT_SECRET = config('CLIENT_SECRET'),
+	TEAM_ID = config('TEAM_ID');
 
 var express = require('express');
 var app = express();
 var http = require('http');
 
-app.set('port', process.env.OPENSHIFT_NODEJS_PORT || process.env.PORT || 3002);
-app.set('ip', process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1");
+app.get('*', function(req, res){
+	res.redirect('http://www.codergv.org/');
+});
 
-http.createServer(app).listen(app.get('port'), app.get('ip'), function () {
-		console.log("✔ Express server listening at %s:%d ", app.get('ip'),app.get('port'));
+http.createServer(app).listen(config('PORT'), config('IP'), function() {
+		console.log("✔ Express server listening at %s:%d ", config('IP'), config('PORT'));
 });
 
 var controller = Botkit.slackbot({
