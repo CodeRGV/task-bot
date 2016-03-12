@@ -100,7 +100,7 @@ controller.hears(['^add'], ALL, function(bot, message) {
 			bot.reply(message, 'Task (id: ' + task.id + ') added.');
 
 			client.addEvent('creates', {
-				channel: channel.id,
+				channel: message.channel,
 				task_id: task.id,
 				description: task.description,
 				section: task.section,
@@ -170,7 +170,7 @@ controller.hears(['^(finish)|(done)|(complete)'], ALL, function(bot, message) {
 				bot.reply(message, 'Updated task (' + id + ').');
 
 				client.addEvent('dones', {
-					channel: channel.id,
+					channel: message.channel,
 					task_id: task.id,
 					section: task.section,
 					due: new Date(task.due).toISOString(),
@@ -220,7 +220,7 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
 
 			client.addEvent('assigns', {
-				channel: channel.id,
+				channel: message.channel,
 				task_id: task.id,
 				helper: message.user
 			});
