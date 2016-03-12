@@ -24,8 +24,6 @@ var DEBUG = os.hostname().indexOf('rhcloud') < 0,
 	ALL = 'direct_message,direct_mention',
 	TOKEN = config('TOKEN'),
 	FIREBASE = config('FIREBASE'),
-	CLIENT_ID = config('CLIENT_ID'),
-	CLIENT_SECRET = config('CLIENT_SECRET'),
 	TEAM_ID = config('TEAM_ID');
 
 var express = require('express');
@@ -56,7 +54,7 @@ controller.findTeamById(TEAM_ID, function(err, team){
 	});
 });
 
-controller.spawn({ token: TOKEN }).startRTM();
+var bot = controller.spawn({ token: TOKEN }).startRTM();
 
 controller.hears(['^help'], ALL, function(bot, message) {
 	bot.reply(message, [
@@ -329,3 +327,6 @@ Array.exclude = function(array, value){
 	});
 	return array;
 };
+
+
+module.exports = {controller: controller, app: app, bot: bot};

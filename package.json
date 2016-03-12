@@ -28,7 +28,8 @@
     "keen-js": "^3.4.0"
   },
   "devDependencies": {
-    "should": "^8.2.2"
+    "should": "^8.2.2",
+    "sinon": "^1.17.3"
   },
   "bundleDependencies": [],
   "private": true,
