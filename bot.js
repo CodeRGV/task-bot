@@ -105,7 +105,7 @@ controller.hears(['^add'], ALL, function(bot, message) {
 				description: task.description,
 				section: task.section,
 				due: new Date(task.due).toISOString(),
-				assigned: task.assigned.split(', ')
+				assigned: task.assigned.split(', '),
 				creator: task.creator				
 			});
 		});
