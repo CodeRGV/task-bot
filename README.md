@@ -33,3 +33,12 @@ assigned
 > # email support@codergv.org for .env settings
 > rhc set-env .env taskbot # if you're using openshift
 > node bot.js
+
+
+### Analytics
+ - rank users that completed tasks
+ - number of tasks pending (per channel)
+ - number of tasks overdue (per channel)
+ - number of tasks completed (per week/month, per channel/user)
+
+View dashboard at: `/board`

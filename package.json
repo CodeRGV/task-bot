@@ -21,7 +21,8 @@
     "botkit": "0.0.7",
     "date.js": "^0.3.1",
     "fecha": "^2.0.0",
-    "firebase": "^2.4.1"
+    "firebase": "^2.4.1",
+    "keen-js": "^3.4.0"
   },
   "devDependencies": {},
   "bundleDependencies": [],

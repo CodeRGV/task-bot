@@ -2,17 +2,24 @@
 var os = require('os');
 var date = require('date.js');
 var fecha = require('fecha');
+var Keen = require('keen-js');
+
+var client = new Keen({
+	projectId: process.env.KEEN_ID,
+	writeKey: process.env.KEEN_WRITE,
+	readKey: process.env.KEEN_READ
+});
 
 var Botkit = require('botkit');
 var firebase = require('./storage/firebase.js');
 
 var DEBUG = true,
-  ALL = 'direct_message,direct_mention',
-  TOKEN = process.env.TOKEN,
-  FIREBASE = process.env.FIREBASE,
-  CLIENT_ID = process.env.CLIENT_ID,
-  CLIENT_SECRET = process.env.CLIENT_SECRET,
-  TEAM_ID = process.env.TEAM_ID;
+	ALL = 'direct_message,direct_mention',
+	TOKEN = process.env.TOKEN,
+	FIREBASE = process.env.FIREBASE,
+	CLIENT_ID = process.env.CLIENT_ID,
+	CLIENT_SECRET = process.env.CLIENT_SECRET,
+	TEAM_ID = process.env.TEAM_ID;
 
 var express = require('express');
 var app = express();
@@ -21,24 +28,24 @@ var http = require('http');
 app.set('port', process.env.OPENSHIFT_NODEJS_PORT || process.env.PORT || 3002);
 app.set('ip', process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1");
 
-http.createServer(app).listen(app.get('port') ,app.get('ip'), function () {
-    console.log("✔ Express server listening at %s:%d ", app.get('ip'),app.get('port'));
+http.createServer(app).listen(app.get('port'), app.get('ip'), function () {
+		console.log("✔ Express server listening at %s:%d ", app.get('ip'),app.get('port'));
 });
 
 var controller = Botkit.slackbot({
-  debug: DEBUG,
-  storage: firebase({ firebase_uri: FIREBASE })
+	debug: DEBUG,
+	storage: firebase({ firebase_uri: FIREBASE })
 });
 
 var storage = controller.storage;
 
 controller.findTeamById(TEAM_ID, function(err, team){
-  if (!team) controller.saveTeam({
-    id: TEAM_ID,
-    createdBy: 'olmo',
-    url: 'codergv.slack.com',
-    name: 'Code#RGV'
-  });
+	if (!team) controller.saveTeam({
+		id: TEAM_ID,
+		createdBy: 'olmo',
+		url: 'codergv.slack.com',
+		name: 'Code#RGV'
+	});
 });
 
 controller.spawn({ token: TOKEN }).startRTM();
@@ -62,71 +69,81 @@ controller.hears(['^help'], ALL, function(bot, message) {
 
 controller.hears(['^add'], ALL, function(bot, message) {
 
-  var task = {
-    description: (match(message.text, /^add ([^#\[<]+)/i)[1] || '').trim(),
-    section: (match(message.text, /#([\w-]+)/)[1] || '').trim(),
-    due: (match(message.text, /\[([^\]]+)\]/)[1] || '').trim(),
-    assigned: match(message.text, /(<@[^>]+>)/i).slice(1),
-    creator: message.user,
-    status: 'due',
-    votes: 0
-  };
+	var task = {
+		description: (match(message.text, /^add ([^#\[<]+)/i)[1] || '').trim(),
+		section: (match(message.text, /#([\w-]+)/)[1] || '').trim(),
+		due: (match(message.text, /\[([^\]]+)\]/)[1] || '').trim(),
+		assigned: match(message.text, /(<@[^>]+>)/i).slice(1),
+		creator: message.user,
+		status: 'due',
+		votes: 0
+	};
 
-  if (DEBUG) controller.log('understood: ' + JSON.format(task));
+	if (DEBUG) controller.log('understood: ' + JSON.format(task));
 
-  task.section = task.section || 'all';
-  task.due = date(task.due || 'in 7 days') * 1;
-  task.assigned = task.assigned.join(', ') || '<@' + message.user + '>';
+	task.section = task.section || 'all';
+	task.due = date(task.due || 'in 7 days') * 1;
+	task.assigned = task.assigned.join(', ') || '<@' + message.user + '>';
 
-  if (DEBUG) controller.log('assuming: ' + JSON.format(task));
+	if (DEBUG) controller.log('assuming: ' + JSON.format(task));
 
-  storage.channels.get(message.channel, function(err, channel){
-  	if (!channel) channel = {tasks: []};
-  	channel.id = message.channel;
-  	if(!channel.tasks) channel.tasks = [];
-  	
-  	var last = channel.tasks.slice(-1)[0] || {id : -1};
-  	task.id = last.id + 1;
-  	channel.tasks.push(task);
+	storage.channels.get(message.channel, function(err, channel){
+		if (!channel) channel = {tasks: []};
+		channel.id = message.channel;
+		if(!channel.tasks) channel.tasks = [];
+		
+		var last = channel.tasks.slice(-1)[0] || {id : -1};
+		task.id = last.id + 1;
+		channel.tasks.push(task);
 
-  	storage.channels.save(channel, function(err, channel){
-  		bot.reply(message, 'Task (id: ' + task.id + ') added.');
-  	});
-  });
+		storage.channels.save(channel, function(err, channel){
+			bot.reply(message, 'Task (id: ' + task.id + ') added.');
+
+			client.addEvent('creates', {
+				channel: channel.id,
+				task_id: task.id,
+				description: task.description,
+				section: task.section,
+				due: new Date(task.due).toISOString(),
+				assigned: task.assigned.split(', ')
+				creator: task.creator				
+			});
+		});
+	});
 });
 
 
 controller.hears(['^list'], ALL, function(bot, message) {
 	var filter = !(match(message.text, /(all)$/i)[1] || '').trim()
 
-  storage.channels.get(message.channel, function(err, channel){
-  	if (!channel) channel = {tasks: []};
-  	
-  	if (channel.tasks && channel.tasks.length){
-  		var tasks = channel.tasks;
-  		if (filter){
-  			tasks = tasks.filter(function(task){
-	  			return task.status !== 'done';
-	  		});
-	  	}
+	storage.channels.get(message.channel, function(err, channel){
+		if (!channel) channel = {tasks: []};
+		
+		if (channel.tasks && channel.tasks.length){
+			var tasks = channel.tasks;
+			if (filter){
+				tasks = tasks.filter(function(task){
+					return task.status !== 'done';
+				});
+			}
 
-	  	tasks.sort(function(a, b){
-  			return new Date(a.due) > new Date(b.due);
-  		}).forEach(function(task){
-  			var assigned = task.assigned;
-  			if (!assigned.length) assigned = '_*none*_';
+			tasks.sort(function(a, b){
+				return new Date(a.due) > new Date(b.due);
+			}).forEach(function(task){
+				var assigned = task.assigned;
+				if (!assigned.length) assigned = '_*none*_';
 
-  			bot.reply(message, {
-  				text: [
-	  				'_(' + task.id + ')_ ⋅ *' + fecha.format(new Date(task.due), 'shortDate') + '* ⋅ ' +  assigned + ' (*' + task.status + '*)',
-	  				'> ' + task.description
-	  			].join('\n')
-	  		})
-  		});
-  	} else {
+				bot.reply(message, {
+					text: [
+						'_(' + task.id + ')_ ⋅ *' + fecha.format(new Date(task.due), 'shortDate') + '* ⋅ ' +	assigned + ' (*' + task.status + '*)',
+						'> ' + task.description
+					].join('\n')
+				})
+			});
+		} else {
 			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
-  	}
-  });
+		}
+	});
 });
 
 
@@ -135,25 +152,37 @@ controller.hears(['^(finish)|(done)|(complete)'], ALL, function(bot, message) {
 
 	if (!id) return bot.reply(message, 'You need to provide a task id.');
 
-  storage.channels.get(message.channel, function(err, channel){
-  	if (!channel) channel = {tasks: []};
-  	
-  	if (channel.tasks && channel.tasks.length){
-  		var task = channel.tasks.filter(function(task){
-  			return task.id == id;
-  		})[0];
+	storage.channels.get(message.channel, function(err, channel){
+		if (!channel) channel = {tasks: []};
+		
+		if (channel.tasks && channel.tasks.length){
+			var task = channel.tasks.filter(function(task){
+				return task.id == id;
+			})[0];
 
-  		if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
+			if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
-  		channel.tasks[id * 1].status = 'done';
-  		storage.channels.save(channel, function(err, channel){
-  			bot.reply(message, 'Updated task (' + id + ').');
-  		});
+			var task = channel.tasks[id * 1];
+			task.status = 'done';
+			task.doneBy = message.user;
 
-  	} else {
+			storage.channels.save(channel, function(err, channel){
+				bot.reply(message, 'Updated task (' + id + ').');
+
+				client.addEvent('dones', {
+					channel: channel.id,
+					task_id: task.id,
+					section: task.section,
+					due: new Date(task.due).toISOString(),
+					delta: Date.now() - Number(new Date(task.due)),
+					doneBy: message.user
+				});
+			});
+
+		} else {
 			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
-  	}
-  });
+		}
+	});
 });
 
 
@@ -164,33 +193,39 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 	var assign = match(message.text, /(<@[^>]+>)/i).slice(1);
 	if (!assign.length) assign = ['<@' + message.user + '>'];
 
-  storage.channels.get(message.channel, function(err, channel){
-  	if (!channel) channel = {tasks: []};
-  	
-  	if (channel.tasks && channel.tasks.length){
-  		var index = -1;
-  		
-  		channel.tasks.some(function(task, i){
-  			controller.log(task.id + ', i: ' + i);
-  			if (task.id == id) {
-  				index = i;
-  				return true;
-  			}
-  		});
+	storage.channels.get(message.channel, function(err, channel){
+		if (!channel) channel = {tasks: []};
+		
+		if (channel.tasks && channel.tasks.length){
+			var index = -1;
+			
+			channel.tasks.some(function(task, i){
+				controller.log(task.id + ', i: ' + i);
+				if (task.id == id) {
+					index = i;
+					return true;
+				}
+			});
 
-  		if (index == -1) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
+			if (index == -1) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
-  		var task = channel.tasks[index];
-  		task.assigned = Array.include(task.assigned.split(', '), assign).join(', ');
+			var task = channel.tasks[index];
+			task.assigned = Array.include(task.assigned.split(', '), assign).join(', ');
 
-  		storage.channels.save(channel, function(err, channel){
-  			bot.reply(message, 'Updated task (' + id + ').');
-  		});
+			storage.channels.save(channel, function(err, channel){
+				bot.reply(message, 'Updated task (' + id + ').');
+			});
 
-  	} else {
+		} else {
 			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
-  	}
-  });
+
+			client.addEvent('assigns', {
+				channel: channel.id,
+				task_id: task.id,
+				helper: message.user
+			});
+		}
+	});
 
 });
 
@@ -202,66 +237,72 @@ controller.hears(['^(abandon)|(drop)'], ALL, function(bot, message){
 	var assign = match(message.text, /(<@[^>]+>)/i).slice(1);
 	if (!assign.length) assign = ['<@' + message.user + '>'];
 
-  storage.channels.get(message.channel, function(err, channel){
-  	if (!channel) channel = {tasks: []};
-  	
-  	if (channel.tasks && channel.tasks.length){
-  		var index = -1;
-  		
-  		channel.tasks.some(function(task, i){
-  			if (task.id == id) {
-  				index = i;
-  				return true;
-  			}
-  		});
+	storage.channels.get(message.channel, function(err, channel){
+		if (!channel) channel = {tasks: []};
+		
+		if (channel.tasks && channel.tasks.length){
+			var index = -1;
+			
+			channel.tasks.some(function(task, i){
+				if (task.id == id) {
+					index = i;
+					return true;
+				}
+			});
 
-  		if (index == -1) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
+			if (index == -1) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
-  		var task = channel.tasks[index];
-  		task.assigned = Array.exclude(task.assigned.split(', '), assign).join(', ');
+			var task = channel.tasks[index];
+			task.assigned = Array.exclude(task.assigned.split(', '), assign).join(', ');
 
-  		storage.channels.save(channel, function(err, channel){
-  			bot.reply(message, 'Updated task (' + id + ').');
-  		});
+			storage.channels.save(channel, function(err, channel){
+				bot.reply(message, 'Updated task (' + id + ').');
 
-  	} else {
+				client.addEvent('abandons', {
+					channel: channel.id,
+					task_id: task.id,
+					runaway: message.user
+				});	
+			});
+
+		} else {
 			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
-  	}
-  });
+		}
+	});
 
 });
 
 
 controller.hears(['uptime'],'direct_message,direct_mention,mention',function(bot, message) {
-  var uptime = formatUptime(process.uptime());
-  bot.reply(message,':robot_face: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + '.');
+	var uptime = formatUptime(process.uptime());
+	bot.reply(message,':robot_face: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + '.');
 });
 
 
 function formatUptime(uptime) {
-  var unit = 'second';
-  if (uptime > 60) {
-  uptime = uptime / 60;
-  unit = 'minute';
-  }
-  if (uptime > 60) {
-  uptime = uptime / 60;
-  unit = 'hour';
-  }
-  if (uptime != 1) {
-  unit = unit + 's';
-  }
+	var unit = 'second';
+	if (uptime > 60) {
+	uptime = uptime / 60;
+	unit = 'minute';
+	}
+	if (uptime > 60) {
+	uptime = uptime / 60;
+	unit = 'hour';
+	}
+	if (uptime != 1) {
+	unit = unit + 's';
+	}
 
-  uptime = uptime + ' ' + unit;
-  return uptime;
+	uptime = uptime + ' ' + unit;
+	return uptime;
 }
 
 function match(string, regexp){
-  return string.match(regexp) || [];
+	return string.match(regexp) || [];
 }
 
 JSON.format = function(object){
-  return JSON.stringify(object, null, '\t');
+	return JSON.stringify(object, null, '\t');
 };
 
 Array.include = function(array, value){
