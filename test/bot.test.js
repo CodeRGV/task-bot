@@ -1,6 +1,7 @@
 var should = require('should');
 var sinon = require('sinon');
 
+process.env.DEBUG = false;
 var bot = require('../bot.js');
 
 var stub;
@@ -25,6 +26,8 @@ describe('TaskBot', function() {
 
 	afterEach(function () {
 		sandbox.restore();
+
+		bot.controller.events['task.added'] = [];
 	});
 
 	describe('@task (RTM API)', function(){
@@ -34,11 +37,13 @@ describe('TaskBot', function() {
 			(/Usage/i).test(stub.reply.firstCall).should.be.true();
 		});
 
-		it('should add tasks', function(){
+		it('should add tasks', function(done){
+			bot.controller.on('task.added', function(){
+				stub.reply.called.should.be.true();
+				(/Task.*added/i).test(stub.reply.firstCall).should.be.true();
+				done();
+			})
 			message('add a test task');
-			stub.reply.called.should.be.true();
-			console.log(stub.reply.firstCall)
-			(/Task.*added/i).test(stub.reply.firstCall).should.be.true();
 		});
 
 		it('should complete tasks', function(){

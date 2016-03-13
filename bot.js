@@ -1,7 +1,11 @@
 require('dotenv').config();
 var config = (function(env){
+	var map = {false: false};
 	return function(key, value){
-		return env.get(key, value) || process.env[key];
+		if (env.get(key)) return env.get(key);
+		if (key in process.env) value = process.env[key];
+		if (value in map) value = map[value];
+		return value;
 	};
 })(require('cloud-env'));
 
@@ -20,7 +24,7 @@ var client = new Keen({
 var Botkit = require('botkit');
 var firebase = require('./storage/firebase.js');
 
-var DEBUG = os.hostname().indexOf('rhcloud') < 0,
+var DEBUG = config('DEBUG', os.hostname().indexOf('rhcloud') < 0),
 	ALL = 'direct_message,direct_mention',
 	TOKEN = config('TOKEN'),
 	FIREBASE = config('FIREBASE'),
@@ -40,6 +44,7 @@ http.createServer(app).listen(config('PORT'), config('IP'), function() {
 
 var controller = Botkit.slackbot({
 	debug: DEBUG,
+	logLevel: DEBUG ? 'debug' : 'critical',
 	storage: firebase({ firebase_uri: FIREBASE })
 });
 
@@ -96,7 +101,7 @@ controller.hears(['^add'], ALL, function(bot, message) {
 	storage.channels.get(message.channel, function(err, channel){
 		if (!channel) channel = {tasks: []};
 		channel.id = message.channel;
-		if(!channel.tasks) channel.tasks = [];
+		if (!channel.tasks) channel.tasks = [];
 		
 		var last = channel.tasks.slice(-1)[0] || {id : -1};
 		task.id = last.id + 1;
@@ -112,8 +117,10 @@ controller.hears(['^add'], ALL, function(bot, message) {
 				section: task.section,
 				due: new Date(task.due).toISOString(),
 				assigned: task.assigned.split(', '),
-				creator: task.creator				
+				creator: task.creator
 			});
+
+			controller.trigger('task.added');
 		});
 	});
 });
@@ -183,6 +190,8 @@ controller.hears(['^(finish)|(done)|(complete)'], ALL, function(bot, message) {
 					delta: Date.now() - Number(new Date(task.due)),
 					doneBy: message.user
 				});
+
+				controller.trigger('task.done');
 			});
 
 		} else {
@@ -230,6 +239,8 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 				task_id: task.id,
 				helper: message.user
 			});
+
+			controller.trigger('task.assign');
 		}
 	});
 
@@ -269,6 +280,8 @@ controller.hears(['^(abandon)|(drop)'], ALL, function(bot, message){
 					task_id: task.id,
 					runaway: message.user
 				});	
+
+				controller.trigger('task.drop');
 			});
 
 		} else {
