@@ -84,9 +84,10 @@ controller.hears(['^add'], ALL, function(bot, message) {
 		description: (match(message.text, /^add ([^#\[<]+)/i)[1] || '').trim(),
 		section: (match(message.text, /#([\w-]+)/)[1] || '').trim(),
 		due: (match(message.text, /\[([^\]]+)\]/)[1] || '').trim(),
-		assigned: match(message.text, /(<@[^>]+>)/i).slice(1),
+		assigned: match(message.text, /<@([^>]+)>/ig).slice(1),
 		creator: message.user,
 		status: 'due',
+		channel: message.channel,
 		votes: 0
 	};
 
@@ -94,7 +95,7 @@ controller.hears(['^add'], ALL, function(bot, message) {
 
 	task.section = task.section || 'all';
 	task.due = date(task.due || 'in 7 days') * 1;
-	task.assigned = task.assigned.join(', ') || '<@' + message.user + '>';
+	if (!task.assigned.length) task.assigned = [message.user];
 
 	if (DEBUG) controller.log('assuming: ' + JSON.format(task));
 
@@ -116,11 +117,11 @@ controller.hears(['^add'], ALL, function(bot, message) {
 				description: task.description,
 				section: task.section,
 				due: new Date(task.due).toISOString(),
-				assigned: task.assigned.split(', '),
+				assigned: task.assigned,
 				creator: task.creator
 			});
 
-			controller.trigger('task.added');
+			controller.trigger('task.added', [task]);
 		});
 	});
 });
@@ -132,7 +133,7 @@ controller.hears(['^list'], ALL, function(bot, message) {
 	storage.channels.get(message.channel, function(err, channel){
 		if (!channel) channel = {tasks: []};
 		
-		if (channel.tasks && channel.tasks.length){
+		if (channel.tasks.length){
 			var tasks = channel.tasks;
 			if (filter){
 				tasks = tasks.filter(function(task){
@@ -143,12 +144,14 @@ controller.hears(['^list'], ALL, function(bot, message) {
 			tasks.sort(function(a, b){
 				return new Date(a.due) > new Date(b.due);
 			}).forEach(function(task){
-				var assigned = task.assigned;
-				if (!assigned.length) assigned = '_*none*_';
+				var due = fecha.format(new Date(task.due), 'shortDate');
+				var assigned = !task.assigned.length ? '_*none*_' : task.assigned.map(function(user){
+					return '<@' + user + '>';
+				}).join('');
 
 				bot.reply(message, {
 					text: [
-						'_(' + task.id + ')_ ⋅ *' + fecha.format(new Date(task.due), 'shortDate') + '* ⋅ ' +	assigned + ' (*' + task.status + '*)',
+						'_(' + task.id + ')_ ⋅ *' + due + '* ⋅ ' + 	assigned + ' (*' + task.status + '*)',
 						'> ' + task.description
 					].join('\n')
 				})
@@ -205,8 +208,8 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 	var id = (match(message.text, /(\d+)/i)[1] || '').trim();
 	if (!id) return bot.reply(message, 'You need to provide a task id.');
 
-	var assign = match(message.text, /(<@[^>]+>)/i).slice(1);
-	if (!assign.length) assign = ['<@' + message.user + '>'];
+	var assign = match(message.text, /<@([^>]+)>/ig).slice(1);
+	if (!assign.length) assign = [message.user];
 
 	storage.channels.get(message.channel, function(err, channel){
 		if (!channel) channel = {tasks: []};
@@ -225,7 +228,7 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 			if (index == -1) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
 			var task = channel.tasks[index];
-			task.assigned = Array.include(task.assigned.split(', '), assign).join(', ');
+			task.assigned = Array.include(task.assigned, assign).join(', ');
 
 			storage.channels.save(channel, function(err, channel){
 				bot.reply(message, 'Updated task (' + id + ').');
