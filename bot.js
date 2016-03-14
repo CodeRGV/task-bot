@@ -1,19 +1,9 @@
-require('dotenv').config();
-var config = (function(env){
-	var map = {false: false};
-	return function(key, value){
-		if (env.get(key)) return env.get(key);
-		if (key in process.env) value = process.env[key];
-		if (value in map) value = map[value];
-		return value;
-	};
-})(require('cloud-env'));
+var config = require('./lib/config.js');
 
 var os = require('os');
 var date = require('date.js');
 var fecha = require('fecha');
 var Keen = require('keen-js');
-var os = require("os");
 
 var client = new Keen({
 	projectId: config('KEEN_ID'),
@@ -90,7 +80,10 @@ controller.hears(['^add'], ALL, function(bot, message) {
 		creator: message.user,
 		status: 'due',
 		channel: message.channel,
-		votes: 0
+
+		votes: 0,
+		created: Date.now(),
+		updated: Date.now()
 	};
 
 	if (DEBUG) controller.log('understood: ' + JSON.format(task));
@@ -120,7 +113,9 @@ controller.hears(['^add'], ALL, function(bot, message) {
 				section: task.section,
 				due: new Date(task.due).toISOString(),
 				assigned: task.assigned,
-				creator: task.creator
+				creator: task.creator,
+				created: task.created,
+				updated: task.updated
 			});
 
 			controller.trigger('task.added', [task]);
@@ -147,10 +142,9 @@ controller.hears(['^list'], ALL, function(bot, message) {
 				return new Date(a.due) > new Date(b.due);
 			}).forEach(function(task){
 				if (!task.assigned) task.assigned = [];
-
-				var due = fecha.format(new Date(task.due), 'shortDate');
 				if (!task.assigned.pop) task.assigned = task.assigned.replace(/[<>@ ]/g, '').split(',');
 
+				var due = fecha.format(new Date(task.due), 'shortDate');
 				var assigned = !task.assigned.length ? '_*none*_' : task.assigned.map(function(user){
 					return '<@' + user + '>';
 				}).join(' ');
@@ -189,6 +183,7 @@ controller.hears(['^(finish)|(done)|(complete)'], ALL, function(bot, message) {
 			var task = channel.tasks[id * 1];
 			task.status = 'done';
 			task.doneBy = message.user;
+			task.updated = Date.now();
 
 			storage.channels.save(channel, function(err, channel){
 				bot.reply(message, 'Updated task (' + id + ').');
@@ -199,7 +194,8 @@ controller.hears(['^(finish)|(done)|(complete)'], ALL, function(bot, message) {
 					section: task.section,
 					due: new Date(task.due).toISOString(),
 					delta: Date.now() - Number(new Date(task.due)),
-					doneBy: message.user
+					assigned: task.assigned,
+					doneBy: task.doneBy
 				});
 
 				controller.trigger('task.done', [task]);
@@ -239,6 +235,7 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 
 			var task = channel.tasks[index];
 			task.assigned = Array.include(task.assigned, assign);
+			task.updated = Date.now();
 
 			storage.channels.save(channel, function(err, channel){
 				bot.reply(message, 'Updated task (' + id + ').');
@@ -286,6 +283,7 @@ controller.hears(['^(abandon)|(drop)'], ALL, function(bot, message){
 
 			var task = channel.tasks[index];
 			task.assigned = Array.exclude(task.assigned, assign);
+			task.updated = Date.now()
 
 			storage.channels.save(channel, function(err){
 				bot.reply(message, 'Updated task (' + id + ').');
@@ -315,20 +313,10 @@ controller.hears(['uptime'],'direct_message,direct_mention,mention',function(bot
 
 function formatUptime(uptime) {
 	var unit = 'second';
-	if (uptime > 60) {
-	uptime = uptime / 60;
-	unit = 'minute';
-	}
-	if (uptime > 60) {
-	uptime = uptime / 60;
-	unit = 'hour';
-	}
-	if (uptime != 1) {
-	unit = unit + 's';
-	}
-
-	uptime = uptime + ' ' + unit;
-	return uptime;
+	if (uptime > 60) uptime /= 60, unit = 'minute';
+	if (uptime > 60) uptime /= 60, unit = 'hour';
+	if (uptime != 1) unit += 's';
+	return uptime + ' ' + unit;
 }
 
 function match(string, regexp){

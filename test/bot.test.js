@@ -27,6 +27,7 @@ describe('TaskBot', function() {
 
 	before(function(done){
 		bot.storage.channels.get('mochachannel', function(err, channel){
+			if (!channel) channel = {id: 'mochachannel'};
 			channel.tasks = [];
 			bot.storage.channels.save(channel);
 			done();
@@ -304,7 +305,7 @@ describe('TaskBot', function() {
 	describe('WebServer', function(){
 		it('should redirect all to Code RGV.', function(){
 
-		})
+		});
 	});
 
 });
