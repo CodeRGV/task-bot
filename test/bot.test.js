@@ -3,6 +3,8 @@ var sinon = require('sinon');
 var date = require('date.js');
 
 process.env.DEBUG = false;
+process.env.TRACK = false;
+
 var bot = require('../bot.js');
 
 var stub;
@@ -20,6 +22,8 @@ var message = function(message, options){
 		'text': message,
 	}]);
 };
+
+var ACTIONS = ['added', 'done', 'assign', 'drop', 'list', 'updated'];
 
 describe('TaskBot', function() {
 	
@@ -41,7 +45,7 @@ describe('TaskBot', function() {
 
 	afterEach(function () {
 		sandbox.restore();
-		['added', 'done', 'assign', 'drop', 'list'].forEach(function(action){
+		ACTIONS.forEach(function(action){
 			bot.controller.events['task.' + action] = [];
 		});
 	});
@@ -299,6 +303,82 @@ describe('TaskBot', function() {
 			});
 
 			message('add task1');
+		});
+
+		it('should update description of a task', function(done){
+			bot.controller.on('task.added', function(task){
+				task.description.should.be.exactly('task for description update');
+				message('update ' + task.id + ' task for adjusted update');
+			});
+
+			bot.controller.on('task.updated', function(task){
+				task.description.should.be.exactly('task for adjusted update');
+				task.updatedBy.should.be.exactly('mochauser');
+
+				done();
+			});
+
+			message('add task for description update');
+		});
+
+		it('should update assignment of a task', function(done){
+			bot.controller.on('task.added', function(task){
+				message('update ' + task.id + ' @otheruser');
+			});
+
+			bot.controller.on('task.updated', function(task){
+				task.assigned.should.be.containEql('otheruser');
+				task.assigned.length.should.be.exactly(1);
+				done();
+			});
+
+			message('add task for assignment update');
+		});
+
+		it('should update due date of a task', function(done){
+			bot.controller.on('task.added', function(task){
+				message('update ' + task.id + ' [in 2 days]');
+			});
+
+			bot.controller.on('task.updated', function(task){
+				task.due.should.be.above(date('tomorrow'));
+				task.due.should.be.below(date('in 3 days'));
+				done();
+			});
+
+			message('add task for due update');
+		});
+
+		it('should update section of a task', function(done){
+			bot.controller.on('task.added', function(task){
+				message('update ' + task.id + ' #section');
+			});
+
+			bot.controller.on('task.updated', function(task){
+				task.section.should.be.exactly('section');
+				done();
+			});
+
+			message('add task for section update');
+		});
+
+		it('should update all of task', function(done){
+			bot.controller.on('task.added', function(task){
+				message('update ' + task.id + ' new description #section [in 4 days] @otheruser @another');
+			});
+
+			bot.controller.on('task.updated', function(task){
+				task.description.should.be.exactly('new description');
+				task.assigned.should.be.containEql('otheruser');
+				task.assigned.should.be.containEql('another');
+				task.assigned.length.should.be.containEql(2);
+				task.due.should.be.above(date('in 3 days'));
+				task.due.should.be.below(date('in 5 days'));
+				task.section.should.be.exactly('section');
+				done();
+			});
+
+			message('add task for all update');
 		});
 	});
 

@@ -18,7 +18,8 @@ var DEBUG = config('DEBUG', os.hostname().indexOf('rhcloud') < 0),
 	ALL = 'direct_message,direct_mention',
 	TOKEN = config('TOKEN'),
 	FIREBASE = config('FIREBASE'),
-	TEAM_ID = config('TEAM_ID');
+	TEAM_ID = config('TEAM_ID'),
+	TRACK = config('TRACK', true);
 
 var express = require('express');
 var app = express();
@@ -59,7 +60,7 @@ controller.hears(['^help'], ALL, function(bot, message) {
 		'> @task finish|done|complete {id}',
 		'> @task aid|assist {id}',
 		'> @task abandon|drop {id}',
-		//'> @task update {slug|id|search}',
+		'> @task update {id} {description} #section [1/1/2016] @name',
 		//'> @task note|comment {slug|id|search}',
 		'> @task help',
 		'',
@@ -106,7 +107,7 @@ controller.hears(['^add'], ALL, function(bot, message) {
 		storage.channels.save(channel, function(err, channel){
 			bot.reply(message, 'Task (id: ' + task.id + ') added.');
 
-			client.addEvent('creates', {
+			if (TRACK) client.addEvent('creates', {
 				channel: message.channel,
 				task_id: task.id,
 				description: task.description,
@@ -124,6 +125,54 @@ controller.hears(['^add'], ALL, function(bot, message) {
 });
 
 
+
+controller.hears(['^update'], ALL, function(bot, message) {
+	var id = (match(message.text, /^update *(\d+)/i)[1] || '').trim();
+	if (!id) return bot.reply(message, 'You need to provide a task id.');
+
+	storage.channels.get(message.channel, function(err, channel){
+		if (!channel) channel = {tasks: []};
+		
+		if (channel.tasks && channel.tasks.length){
+			var task = channel.tasks.filter(function(task){
+				return task.id == id;
+			})[0];
+
+			var previous = Object.merge({}, task);
+
+			if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
+			task.description = (match(message.text, /^update *\d+ *([^#\[<]+)/i)[1] || '').trim();
+			task.section = (match(message.text, /#([\w-]+)/)[1] || '').trim() || 'all';
+			task.due = date((match(message.text, /\[([^\]]+)\]/)[1] || '').trim() || 'in 7 days') * 1;
+			task.assigned = match(message.text, /<@([^>]+)>/ig).map(function(user){
+				return user.replace(/[<>@]/g, '');
+			});
+			task.updatedBy = message.user;
+			task.updated = Date.now();
+
+			if (!task.assigned.length) task.assigned = [message.user];
+
+			storage.channels.save(channel, function(err, channel){
+				bot.reply(message, 'Updated task (' + task.id + ').');
+
+				if (TRACK) client.addEvent('updates', {
+					channel: message.channel,
+					task_id: task.id,
+					previous: previous,
+					current: task,
+					updatedBy: task.updatedBy
+				});
+
+				controller.trigger('task.updated', [task]);
+			});
+		} else {
+			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
+		}
+	});
+
+});
+
+
 controller.hears(['^list'], ALL, function(bot, message) {
 	var filter = !(match(message.text, /(all)$/i)[1] || '').trim()
 
@@ -132,11 +181,9 @@ controller.hears(['^list'], ALL, function(bot, message) {
 		
 		if (channel.tasks.length){
 			var tasks = channel.tasks;
-			if (filter){
-				tasks = tasks.filter(function(task){
-					return task.status !== 'done';
-				});
-			}
+			if (filter) tasks = tasks.filter(function(task){
+				return task.status !== 'done';
+			});
 
 			tasks.sort(function(a, b){
 				return new Date(a.due) > new Date(b.due);
@@ -167,7 +214,6 @@ controller.hears(['^list'], ALL, function(bot, message) {
 
 controller.hears(['^(finish)|(done)|(complete)'], ALL, function(bot, message) {
 	var id = (match(message.text, /(\d+)$/i)[1] || '').trim();
-
 	if (!id) return bot.reply(message, 'You need to provide a task id.');
 
 	storage.channels.get(message.channel, function(err, channel){
@@ -188,7 +234,7 @@ controller.hears(['^(finish)|(done)|(complete)'], ALL, function(bot, message) {
 			storage.channels.save(channel, function(err, channel){
 				bot.reply(message, 'Updated task (' + id + ').');
 
-				client.addEvent('dones', {
+				if (TRACK) client.addEvent('dones', {
 					channel: message.channel,
 					task_id: task.id,
 					section: task.section,
@@ -240,7 +286,7 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 			storage.channels.save(channel, function(err, channel){
 				bot.reply(message, 'Updated task (' + id + ').');
 
-				client.addEvent('assigns', {
+				if (TRACK) client.addEvent('assigns', {
 					channel: message.channel,
 					task_id: task.id,
 					helper: message.user
@@ -288,7 +334,7 @@ controller.hears(['^(abandon)|(drop)'], ALL, function(bot, message){
 			storage.channels.save(channel, function(err){
 				bot.reply(message, 'Updated task (' + id + ').');
 
-				client.addEvent('abandons', {
+				if (TRACK) client.addEvent('abandons', {
 					channel: channel.id,
 					task_id: task.id,
 					runaway: message.user
@@ -344,6 +390,12 @@ Array.exclude = function(array, value){
 	return array;
 };
 
+Object.merge = function(target, source){
+	[].slice.call(arguments, 1).forEach(function(source){
+		for (var key in source) if (key in source) target[key] = source[key];
+	});
+	return target;
+};
 
 module.exports = {
 	app: app,
