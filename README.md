@@ -26,13 +26,13 @@ At Code RGV we need a way to track our tasks. This bot does so, and makes our li
 * *assigned*
 
 ## Getting Started
-> git clone git@github.com/CodeRGV/task-bot.git
-> cd task-bot
-> npm install
-> cp .env.example .env
-> # email support@codergv.org for .env settings
-> rhc set-env .env taskbot # if you're using openshift
-> node bot.js
+> git clone git@github.com/CodeRGV/task-bot.git  
+> cd task-bot  
+> npm install  
+> cp .env.example .env  
+> \# email support@codergv.org for .env settings  
+> rhc set-env .env taskbot # if you're using openshift  
+> node bot.js  
 
 ### Analytics
  - rank users that completed tasks
