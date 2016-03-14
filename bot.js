@@ -149,9 +149,11 @@ controller.hears(['^list'], ALL, function(bot, message) {
 				if (!task.assigned) task.assigned = [];
 
 				var due = fecha.format(new Date(task.due), 'shortDate');
+				if (!task.assigned.pop) task.assigned = task.assigned.replace(/[<>@ ]/g, '').split(',');
+
 				var assigned = !task.assigned.length ? '_*none*_' : task.assigned.map(function(user){
 					return '<@' + user + '>';
-				}).join('');
+				}).join(' ');
 
 				bot.reply(message, {
 					text: [
