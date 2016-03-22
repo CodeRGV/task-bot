@@ -1,0 +1,82 @@
+doctype html
+html
+	head
+		title Tasks Dashboard
+		meta(name='viewport', content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
+		link(rel='stylesheet', type='text/css', href='https://rawgit.com/keen/dashboards/gh-pages/assets/lib/bootstrap/dist/css/bootstrap.min.css')
+		link(rel='stylesheet', type='text/css', href='https://rawgit.com/keen/dashboards/gh-pages/assets/css/keen-dashboards.css')
+		!= LRScript
+
+		style().
+			.tab-content{
+				background-color:#fff;
+				padding: 5px 10px;
+				border: 1px solid #ddd;
+				border-top: none;
+				min-height: 250px;
+			}
+			.nav-tabs > li > a{
+				border: medium none;
+			}
+	body(class='application')
+		div(class='navbar navbar-inverse navbar-fixed-top', role='navigation')
+			div(class='container-fluid')
+				div(class='navbar-header')
+					a(class='navbar-brand', href='javascript:void()') Task Dashboard
+
+		div(class='container-fluid')
+			div(class='row')
+				div(class='col-sm-8')
+					div(id='task-tabs')
+						ul(class='nav nav-tabs')
+							li(class='active'): a(href='#home', data-toggle='tab') Home
+
+						div(class='tab-content')
+							div(class='tab-pane active', id='home')
+								table(class='table table-hover')
+									thead
+										tr
+											th #
+											th First Name
+											th Last Name
+											th Username
+									tbody
+										tr
+											th(scope='row') 1
+											td Mark
+											td Otto
+											td @mdo
+										tr
+											th(scope='row') 2
+											td Mark
+											td Otto
+											td @mdo
+										tr
+											th(scope='row') 3
+											td Mark
+											td Otto
+											td @mdo
+				div(class='col-sm-4')
+					div(class='chart-wrapper')
+						div(class='chart-title') Impressions by advertiser
+						div(class='chart-stage'): div(id='chart-03')
+						div(class='chart-notes') Notes go down here
+
+			br
+			
+			p(class='small text-muted') Built with &#9829; by #[a(href='https://keen.io') Keen IO]
+
+
+		script(type='text/javascript', src='https://rawgit.com/keen/dashboards/gh-pages/assets/lib/jquery/dist/jquery.min.js')
+		script(type='text/javascript', src='https://rawgit.com/keen/dashboards/gh-pages/assets/lib/bootstrap/dist/js/bootstrap.min.js')
+		
+		script(type='text/javascript', src='https://rawgit.com/keen/dashboards/gh-pages/assets/lib/holderjs/holder.js')
+		script().
+			Holder.add_theme("white", { background:"#fff", foreground:"#a7a7a7", size:10 });
+
+		script(type='text/javascript', src='https://rawgit.com/keen/dashboards/gh-pages/assets/lib/keen-js/dist/keen.min.js')
+		script().
+			$('#task-tabs a').click(function (e) {
+				e.preventDefault()
+				$(this).tab('show')
+			});

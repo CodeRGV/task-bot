@@ -22,8 +22,17 @@ var DEBUG = config('DEBUG', os.hostname().indexOf('rhcloud') < 0),
 	TRACK = config('TRACK', true);
 
 var express = require('express');
+var livereload = require('express-livereload');
 var app = express();
 var http = require('http');
+
+livereload(app, {watchDir: 'views'});
+
+app.set('view engine', 'jade');
+
+app.get('/board', function(req, res){
+	res.render('board', {});
+});
 
 app.get('*', function(req, res){
 	res.redirect('http://www.codergv.org/');
