@@ -21,26 +21,6 @@ var DEBUG = config('DEBUG', os.hostname().indexOf('rhcloud') < 0),
 	TEAM_ID = config('TEAM_ID'),
 	TRACK = config('TRACK', true);
 
-var express = require('express');
-var livereload = require('express-livereload');
-var app = express();
-var http = require('http');
-
-livereload(app, {watchDir: 'views'});
-
-app.set('view engine', 'jade');
-
-app.get('/board', function(req, res){
-	res.render('board', {});
-});
-
-app.get('*', function(req, res){
-	res.redirect('http://www.codergv.org/');
-});
-
-http.createServer(app).listen(config('PORT'), config('IP'), function() {
-		console.log("✔ Express server listening at %s:%d ", config('IP'), config('PORT'));
-});
 
 var controller = Botkit.slackbot({
 	debug: DEBUG,
@@ -365,6 +345,41 @@ controller.hears(['uptime'],'direct_message,direct_mention,mention',function(bot
 	bot.reply(message,':robot_face: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + '.');
 });
 
+
+var express = require('express');
+var livereload = require('express-livereload');
+var app = express();
+var http = require('http');
+
+livereload(app, {watchDir: 'views'});
+
+app.set('view engine', 'jade');
+
+var COLUMNS = 'id description assigned due creator'.split(' ');
+
+var secure = function(req, res, next){
+	if (req.query.key == config('SECRET')) next();
+	else res.redirect('http://www.codergv.org/');
+};
+
+app.get('/board', secure, function(req, res){
+	storage.channels.all(function(err, channels){
+		res.render('board', {
+			channels: channels,
+			columns: COLUMNS,
+			KEEN_ID: config('KEEN_ID'),
+			KEEN_READ: config('KEEN_READ')
+		});
+	});
+});
+
+app.get('*', function(req, res){
+	res.redirect('http://www.codergv.org/');
+});
+
+http.createServer(app).listen(config('PORT'), config('IP'), function() {
+		console.log("✔ Express server listening at %s:%d ", config('IP'), config('PORT'));
+});
 
 function formatUptime(uptime) {
 	var unit = 'second';

@@ -18,6 +18,14 @@ html
 			.nav-tabs > li > a{
 				border: medium none;
 			}
+			table {
+				display: block;
+				overflow: scroll;
+			}
+
+			.column.description {
+				width: 100%;
+			}
 	body(class='application')
 		div(class='navbar navbar-inverse navbar-fixed-top', role='navigation')
 			div(class='container-fluid')
@@ -26,41 +34,31 @@ html
 
 		div(class='container-fluid')
 			div(class='row')
-				div(class='col-sm-8')
+				div(class='col-sm-7')
 					div(id='task-tabs')
 						ul(class='nav nav-tabs')
-							li(class='active'): a(href='#home', data-toggle='tab') Home
+							- var count = 0
+							each channel, i in channels
+								li(class='' + (!count ? 'active' : ''))
+									a(href='#' + i, data-toggle='tab')= channel.id
 
 						div(class='tab-content')
-							div(class='tab-pane active', id='home')
-								table(class='table table-hover')
-									thead
-										tr
-											th #
-											th First Name
-											th Last Name
-											th Username
-									tbody
-										tr
-											th(scope='row') 1
-											td Mark
-											td Otto
-											td @mdo
-										tr
-											th(scope='row') 2
-											td Mark
-											td Otto
-											td @mdo
-										tr
-											th(scope='row') 3
-											td Mark
-											td Otto
-											td @mdo
-				div(class='col-sm-4')
+							each channel, i in channels
+								div(class='tab-pane active', id=i)
+									table(class='table table-hover')
+										thead
+											tr
+												each column in columns
+													th(class='column ' + column)= column
+										tbody
+											each task in channel.tasks
+												tr
+													each column in columns
+														td= task[column]
+				div(class='col-sm-5')
 					div(class='chart-wrapper')
-						div(class='chart-title') Impressions by advertiser
-						div(class='chart-stage'): div(id='chart-03')
-						div(class='chart-notes') Notes go down here
+						div(class='chart-title') New Tasks by Channel
+						div(class='chart-stage'): div(id='chart-01')
 
 			br
 			
@@ -79,4 +77,37 @@ html
 			$('#task-tabs a').click(function (e) {
 				e.preventDefault()
 				$(this).tab('show')
+			});
+
+			var client = new Keen({
+				projectId: '#{KEEN_ID}',
+				readKey: '#{KEEN_READ}'
+			});
+
+			Keen.ready(function(){
+				var query = new Keen.Query("count", {
+					eventCollection: "creates",
+					groupBy: [
+						"channel"
+					],
+					interval: "daily",
+					timeframe: "this_1_months",
+					timezone: "UTC"
+				});
+				
+				client.draw(query, document.getElementById("chart-01"), {
+					chartType: "areachart",
+					title: false,
+					height: 250,
+					width: "auto",
+					chartOptions: {
+			      chartArea: {
+			        height: "85%",
+			        left: "5%",
+			        top: "5%",
+			        width: "100%"
+			      },
+			      isStacked: true
+			    }
+				});
 			});
