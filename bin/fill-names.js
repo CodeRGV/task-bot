@@ -23,7 +23,7 @@ var storage = controller.storage;
 storage.channels.all(function(err, channels){
 	
 	channels.forEach(function(channel){
-		if (channel.id.charAt(0) != 'D' && channel.name) return;
+		if (channel.name) return;
 
 		switch (channel.id.charAt(0)){
 			case 'C':
