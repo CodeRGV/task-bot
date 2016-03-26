@@ -27,7 +27,8 @@
     "fecha": "^2.0.0",
     "firebase": "^2.4.1",
     "jade": "^1.11.0",
-    "keen-js": "^3.4.0"
+    "keen-js": "^3.4.0",
+    "q": "^1.4.1"
   },
   "devDependencies": {
     "should": "^8.2.2",
