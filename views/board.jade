@@ -40,7 +40,7 @@ html
 							- var count = 0
 							each channel, i in channels
 								li(class='' + (!count++ ? 'active' : ''))
-									a(href='#' + i, data-toggle='tab')= channel.id
+									a(href='#' + i, data-toggle='tab')= channel.name
 
 						div(class='tab-content')
 							- var count = 0

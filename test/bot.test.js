@@ -6,6 +6,7 @@ process.env.DEBUG = false;
 process.env.TRACK = false;
 
 var bot = require('../bot.js');
+bot.storage = bot.controller.storage;
 
 var stub;
 var message = function(message, options){
@@ -40,7 +41,7 @@ describe('TaskBot', function() {
 	
 	beforeEach(function () {
 		sandbox = sinon.sandbox.create();
-		stub = sandbox.stub(bot.bot);
+		stub = sandbox.stub(bot.controller.bot);
 	});
 
 	afterEach(function () {
@@ -61,10 +62,11 @@ describe('TaskBot', function() {
 			var now = Date.now();
 			var hour = 3600e3;
 
-			bot.controller.on('task.added', function(task){
+			bot.controller.on('task.added', function(task){				
 				stub.reply.called.should.be.true();
 				(/Task.*added/i).test(stub.reply.firstCall).should.be.true();
 
+				task = task.toObject();
 				task.description.should.be.exactly('a test task');
 				task.section.should.be.exactly('all');
 				task.due.should.be.above(now);
@@ -75,6 +77,7 @@ describe('TaskBot', function() {
 
 				done();
 			});
+
 			message('add a test task');
 		});
 
@@ -86,6 +89,7 @@ describe('TaskBot', function() {
 				stub.reply.called.should.be.true();
 				(/Task.*added/i).test(stub.reply.firstCall).should.be.true();
 
+				task = task.toObject();
 				task.description.should.be.exactly('a task with section');
 				task.section.should.be.exactly('section-test');
 				task.due.should.be.above(now);
@@ -107,6 +111,7 @@ describe('TaskBot', function() {
 				stub.reply.called.should.be.true();
 				(/Task.*added/i).test(stub.reply.firstCall).should.be.true();
 
+				task = task.toObject();
 				task.description.should.be.exactly('a task with due');
 				task.section.should.be.exactly('all');
 				task.due.should.be.above(now);
@@ -128,7 +133,8 @@ describe('TaskBot', function() {
 			bot.controller.on('task.added', function(task){
 				stub.reply.called.should.be.true();
 				(/Task.*added/i).test(stub.reply.firstCall).should.be.true();
-
+				
+				task = task.toObject();
 				task.description.should.be.exactly('a task with assignment');
 				task.section.should.be.exactly('all');
 				task.due.should.be.above(now);
@@ -151,6 +157,7 @@ describe('TaskBot', function() {
 				stub.reply.called.should.be.true();
 				(/Task.*added/i).test(stub.reply.firstCall).should.be.true();
 
+				task = task.toObject();
 				task.description.should.be.exactly('a task with assignments');
 				task.section.should.be.exactly('all');
 				task.due.should.be.above(now);
@@ -170,8 +177,8 @@ describe('TaskBot', function() {
 			var id = -1;
 
 			bot.controller.on('task.added', function(task){
-				id = task.id;
-				message('done ' + task.id);
+				id = task.getId();
+				message('done ' + task.getId());
 			});
 
 			bot.controller.on('task.done', function(task){
@@ -189,8 +196,8 @@ describe('TaskBot', function() {
 			var id = -1;
 
 			bot.controller.on('task.added', function(task){
-				id = task.id;
-				message('assign ' + task.id);
+				id = task.getId();
+				message('assign ' + id);
 			});
 
 			bot.controller.on('task.assign', function(task){
@@ -209,8 +216,8 @@ describe('TaskBot', function() {
 			var id = -1;
 
 			bot.controller.on('task.added', function(task){
-				id = task.id;
-				message('assign ' + task.id + ' @otheruser');
+				id = task.getId();
+				message('assign ' + id + ' @otheruser');
 			});
 
 			bot.controller.on('task.assign', function(task){
@@ -229,8 +236,8 @@ describe('TaskBot', function() {
 			var id = -1;
 
 			bot.controller.on('task.added', function(task){
-				id = task.id;
-				message('assign ' + task.id);
+				id = task.getId();
+				message('assign ' + id);
 			});
 
 			bot.controller.on('task.assign', function(task){
@@ -249,8 +256,8 @@ describe('TaskBot', function() {
 			var id = -1;
 
 			bot.controller.on('task.added', function(task){
-				id = task.id;
-				message('drop ' + task.id);
+				id = task.getId();
+				message('drop ' + id);
 			});
 
 			bot.controller.on('task.drop', function(task){
@@ -269,8 +276,8 @@ describe('TaskBot', function() {
 			var id = -1;
 
 			bot.controller.on('task.added', function(task){
-				id = task.id;
-				message('drop ' + task.id + ' @otheruser');
+				id = task.getId();
+				message('drop ' + id + ' @otheruser');
 			});
 
 			bot.controller.on('task.drop', function(task){
@@ -287,6 +294,7 @@ describe('TaskBot', function() {
 
 		it('should list tasks', function(done){
 			bot.controller.on('task.added', function(task){
+				task = task.toObject();
 				if (task.description == 'task1') message('add task2'); 
 				if (task.description == 'task2') message('list');
 			});
@@ -307,6 +315,7 @@ describe('TaskBot', function() {
 
 		it('should update description of a task', function(done){
 			bot.controller.on('task.added', function(task){
+				task = task.toObject();
 				task.description.should.be.exactly('task for description update');
 				message('update ' + task.id + ' task for adjusted update');
 			});
@@ -323,7 +332,7 @@ describe('TaskBot', function() {
 
 		it('should update assignment of a task', function(done){
 			bot.controller.on('task.added', function(task){
-				message('update ' + task.id + ' @otheruser');
+				message('update ' + task.getId() + ' @otheruser');
 			});
 
 			bot.controller.on('task.updated', function(task){
@@ -337,7 +346,7 @@ describe('TaskBot', function() {
 
 		it('should update due date of a task', function(done){
 			bot.controller.on('task.added', function(task){
-				message('update ' + task.id + ' [in 2 days]');
+				message('update ' + task.getId() + ' [in 2 days]');
 			});
 
 			bot.controller.on('task.updated', function(task){
@@ -351,7 +360,7 @@ describe('TaskBot', function() {
 
 		it('should update section of a task', function(done){
 			bot.controller.on('task.added', function(task){
-				message('update ' + task.id + ' #section');
+				message('update ' + task.getId() + ' #section');
 			});
 
 			bot.controller.on('task.updated', function(task){
@@ -364,7 +373,7 @@ describe('TaskBot', function() {
 
 		it('should update all of task', function(done){
 			bot.controller.on('task.added', function(task){
-				message('update ' + task.id + ' new description #section [in 4 days] @otheruser @another');
+				message('update ' + task.getId() + ' new description #section [in 4 days] @otheruser @another');
 			});
 
 			bot.controller.on('task.updated', function(task){
@@ -379,12 +388,6 @@ describe('TaskBot', function() {
 			});
 
 			message('add task for all update');
-		});
-	});
-
-	describe('WebServer', function(){
-		it('should redirect all to Code RGV.', function(){
-
 		});
 	});
 

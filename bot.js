@@ -1,6 +1,5 @@
 var config = require('./lib/config.js');
 
-var os = require('os');
 var date = require('date.js');
 var fecha = require('fecha');
 var Keen = require('keen-js');
@@ -11,26 +10,16 @@ var client = new Keen({
 	readKey: config('KEEN_READ')
 });
 
-var Botkit = require('botkit');
-var firebase = require('./storage/firebase.js');
+ALL = 'direct_message,direct_mention';
+TRACK = config('TRACK', true);
 
-var DEBUG = config('DEBUG', os.hostname().indexOf('rhcloud') < 0),
-	ALL = 'direct_message,direct_mention',
-	TOKEN = config('TOKEN'),
-	FIREBASE = config('FIREBASE'),
-	TEAM_ID = config('TEAM_ID'),
-	TRACK = config('TRACK', true);
-
-
-var controller = Botkit.slackbot({
-	debug: DEBUG,
-	logLevel: DEBUG ? 'debug' : 'critical',
-	storage: firebase({ firebase_uri: FIREBASE })
-});
-
+var controller = require('./lib/Controller.js');
 var storage = controller.storage;
 
-controller.findTeamById(TEAM_ID, function(err, team){
+var Channel = require('./lib/Channel.js')(controller);
+var Task = require('./lib/Task.js')(controller);
+
+controller.findTeamById(config('TEAM_ID'), function(err, team){
 	if (!team) controller.saveTeam({
 		id: TEAM_ID,
 		createdBy: 'olmo',
@@ -38,8 +27,6 @@ controller.findTeamById(TEAM_ID, function(err, team){
 		name: 'Code#RGV'
 	});
 });
-
-var bot = controller.spawn({ token: TOKEN }).startRTM();
 
 controller.hears(['^help'], ALL, function(bot, message) {
 	bot.reply(message, [
@@ -60,42 +47,15 @@ controller.hears(['^help'], ALL, function(bot, message) {
 
 controller.hears(['^add'], ALL, function(bot, message) {
 
-	var task = {
-		description: (match(message.text, /^add ([^#\[<]+)/i)[1] || '').trim(),
-		section: (match(message.text, /#([\w-]+)/)[1] || '').trim(),
-		due: (match(message.text, /\[([^\]]+)\]/)[1] || '').trim(),
-		assigned: match(message.text, /<@([^>]+)>/ig).map(function(user){
-			return user.replace(/[<>@]/g, '');
-		}),
-		creator: message.user,
-		status: 'due',
-		channel: message.channel,
+	var task = Task.fromMessage(message);
 
-		votes: 0,
-		created: Date.now(),
-		updated: Date.now()
-	};
+	Channel.findOrCreate(message.channel).then(function(channel){
+		channel.addTask(task);
+		channel.save().then(function(channel){
+			bot.reply(message, 'Task (id: ' + task.getId() + ') added.');
+			controller.trigger('task.added', [task]);
 
-	if (DEBUG) controller.log('understood: ' + JSON.format(task));
-
-	task.section = task.section || 'all';
-	task.due = date(task.due || 'in 7 days') * 1;
-	if (!task.assigned.length) task.assigned = [message.user];
-
-	if (DEBUG) controller.log('assuming: ' + JSON.format(task));
-
-	storage.channels.get(message.channel, function(err, channel){
-		if (!channel) channel = {tasks: []};
-		channel.id = message.channel;
-		if (!channel.tasks) channel.tasks = [];
-		
-		var last = channel.tasks.slice(-1)[0] || {id : -1};
-		task.id = last.id + 1;
-		channel.tasks.push(task);
-
-		storage.channels.save(channel, function(err, channel){
-			bot.reply(message, 'Task (id: ' + task.id + ') added.');
-
+			task = task.toObject();
 			if (TRACK) client.addEvent('creates', {
 				channel: message.channel,
 				task_id: task.id,
@@ -107,10 +67,9 @@ controller.hears(['^add'], ALL, function(bot, message) {
 				created: task.created,
 				updated: task.updated
 			});
+		}).done();
+	}).done();
 
-			controller.trigger('task.added', [task]);
-		});
-	});
 });
 
 
@@ -423,7 +382,5 @@ Object.merge = function(target, source){
 
 module.exports = {
 	app: app,
-	bot: bot,
 	controller: controller,
-	storage: storage
 };
