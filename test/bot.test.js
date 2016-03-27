@@ -321,6 +321,7 @@ describe('TaskBot', function() {
 			});
 
 			bot.controller.on('task.updated', function(task){
+				task = task.toObject();
 				task.description.should.be.exactly('task for adjusted update');
 				task.updatedBy.should.be.exactly('mochauser');
 
@@ -336,6 +337,7 @@ describe('TaskBot', function() {
 			});
 
 			bot.controller.on('task.updated', function(task){
+				task = task.toObject();
 				task.assigned.should.be.containEql('otheruser');
 				task.assigned.length.should.be.exactly(1);
 				done();
@@ -350,6 +352,7 @@ describe('TaskBot', function() {
 			});
 
 			bot.controller.on('task.updated', function(task){
+				task = task.toObject();
 				task.due.should.be.above(date('tomorrow'));
 				task.due.should.be.below(date('in 3 days'));
 				done();
@@ -364,6 +367,7 @@ describe('TaskBot', function() {
 			});
 
 			bot.controller.on('task.updated', function(task){
+				task = task.toObject();
 				task.section.should.be.exactly('section');
 				done();
 			});
@@ -377,6 +381,7 @@ describe('TaskBot', function() {
 			});
 
 			bot.controller.on('task.updated', function(task){
+				task = task.toObject();
 				task.description.should.be.exactly('new description');
 				task.assigned.should.be.containEql('otheruser');
 				task.assigned.should.be.containEql('another');

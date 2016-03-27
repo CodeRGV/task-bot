@@ -18,6 +18,7 @@ var storage = controller.storage;
 
 var Channel = require('./lib/Channel.js')(controller);
 var Task = require('./lib/Task.js')(controller);
+var User = require('./lib/User.js')(controller);
 
 controller.findTeamById(config('TEAM_ID'), function(err, team){
 	if (!team) controller.saveTeam({
@@ -51,24 +52,27 @@ controller.hears(['^add'], ALL, function(bot, message) {
 
 	Channel.findOrCreate(message.channel).then(function(channel){
 		channel.addTask(task);
-		channel.save().then(function(channel){
+		channel.save().then(function(){
 			bot.reply(message, 'Task (id: ' + task.getId() + ') added.');
 			controller.trigger('task.added', [task]);
 
-			task = task.toObject();
-			if (TRACK) client.addEvent('creates', {
-				channel: message.channel,
-				task_id: task.id,
-				description: task.description,
-				section: task.section,
-				due: new Date(task.due).toISOString(),
-				assigned: task.assigned,
-				creator: task.creator,
-				created: task.created,
-				updated: task.updated
+			if (TRACK) channel.getName().then(function(name){
+				return client.addEvent('creates', {
+					channel: name,
+					task_id: task.getId(),
+					description: task.getDescription(),
+					section: task.getSection(),
+					due: new Date(task.getDue()).toISOString(),
+					assigned: task.getAssigned(),
+					creator: task.getCreator(),
+					created: task.getCreated(),
+					updated: task.getUpdated()
+				});
 			});
 		}).done();
-	}).done();
+
+		return channel;
+	});
 
 });
 
@@ -78,45 +82,40 @@ controller.hears(['^update'], ALL, function(bot, message) {
 	var id = (match(message.text, /^update *(\d+)/i)[1] || '').trim();
 	if (!id) return bot.reply(message, 'You need to provide a task id.');
 
-	storage.channels.get(message.channel, function(err, channel){
-		if (!channel) channel = {tasks: []};
-		
-		if (channel.tasks && channel.tasks.length){
-			var task = channel.tasks.filter(function(task){
-				return task.id == id;
-			})[0];
+	Channel.findOrCreate(message.channel).then(function(channel){
+		var tasks = channel.getTasks();
+		if (!tasks) return bot.reply(message, 'No tasks recorded. "@task help" for usage.');
 
-			var previous = Object.merge({}, task);
+		var task = tasks.filter(function(task){
+			return task.getId() == id;
+		})[0];
 
-			if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
-			task.description = (match(message.text, /^update *\d+ *([^#\[<]+)/i)[1] || '').trim();
-			task.section = (match(message.text, /#([\w-]+)/)[1] || '').trim() || 'all';
-			task.due = date((match(message.text, /\[([^\]]+)\]/)[1] || '').trim() || 'in 7 days') * 1;
-			task.assigned = match(message.text, /<@([^>]+)>/ig).map(function(user){
-				return user.replace(/[<>@]/g, '');
-			});
-			task.updatedBy = message.user;
-			task.updated = Date.now();
+		var previous = Object.merge({}, task.toObject());
 
-			if (!task.assigned.length) task.assigned = [message.user];
+		if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
-			storage.channels.save(channel, function(err, channel){
-				bot.reply(message, 'Updated task (' + task.id + ').');
+		task.setDescription((match(message.text, /^update *\d+ *([^#\[<]+)/i)[1] || '').trim())
+		task.setSection((match(message.text, /#([\w-]+)/)[1] || '').trim() || 'all')
+		task.setDue(date((match(message.text, /\[([^\]]+)\]/)[1] || '').trim() || 'in 7 days') * 1);
+		task.setAssigned(match(message.text, /<@([^>]+)>/ig).map(User.cleanId));
+		task.setUpdatedBy(message.user);
+		task.setUpdated(Date.now());
 
-				if (TRACK) client.addEvent('updates', {
-					channel: message.channel,
-					task_id: task.id,
+		channel.save().then(function(){
+			bot.reply(message, 'Updated task (' + task.id + ').');
+			controller.trigger('task.updated', [task]);
+
+			if (TRACK) channel.getName().then(function(name){
+				return client.addEvent('updates', {
+					channel: name,
+					task_id: task.getId(),
 					previous: previous,
-					current: task,
-					updatedBy: task.updatedBy
+					current: task.toObject(),
+					updatedBy: task.getUpdatedBy()
 				});
-
-				controller.trigger('task.updated', [task]);
 			});
-		} else {
-			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
-		}
-	});
+		}).done();
+	}).done();
 
 });
 
