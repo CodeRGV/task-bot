@@ -153,15 +153,15 @@ describe('Channel model', function(){
 			Channel.find('ChannelWithTasks').then(function(channel){
 				var tasks = channel.getTasks(), task;
 
-				task = tasks[0];
-				Task.is(task).should.be.exactly(true);
+				task = tasks.get(0);
+				(task instanceof Task).should.be.exactly(true);
 
 				task = task.toObject();
 				task.id.should.be.exactly(0);
 				task.description.should.be.exactly('task 1');
 
-				task = tasks[1];
-				Task.is(task).should.be.exactly(true);
+				task = tasks.get(1);
+				(task instanceof Task).should.be.exactly(true);
 
 				task = task.toObject();
 				task.id.should.be.exactly(1);

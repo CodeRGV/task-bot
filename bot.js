@@ -84,15 +84,12 @@ controller.hears(['^update'], ALL, function(bot, message) {
 
 	Channel.findOrCreate(message.channel).then(function(channel){
 		var tasks = channel.getTasks();
-		if (!tasks) return bot.reply(message, 'No tasks recorded. "@task help" for usage.');
+		if (!tasks.count()) return bot.reply(message, 'No tasks recorded. "@task help" for usage.');
 
-		var task = tasks.filter(function(task){
-			return task.getId() == id;
-		})[0];
+		var task = tasks.find(id);
+		if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
 		var previous = Object.merge({}, task.toObject());
-
-		if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
 		task.setDescription((match(message.text, /^update *\d+ *([^#\[<]+)/i)[1] || '').trim())
 		task.setSection((match(message.text, /#([\w-]+)/)[1] || '').trim() || 'all')
@@ -123,38 +120,28 @@ controller.hears(['^update'], ALL, function(bot, message) {
 controller.hears(['^list'], ALL, function(bot, message) {
 	var filter = !(match(message.text, /(all)$/i)[1] || '').trim()
 
-	storage.channels.get(message.channel, function(err, channel){
-		if (!channel) channel = {tasks: []};
-		
-		if (channel.tasks.length){
-			var tasks = channel.tasks;
-			if (filter) tasks = tasks.filter(function(task){
-				return task.status !== 'done';
+	Channel.findOrCreate(message.channel).then(function(channel){
+		var tasks = channel.getTasks();
+		if (!tasks.count()) return bot.reply(message, 'No tasks recorded. "@task help" for usage.');
+
+		tasks.sort(function(a, b){
+			return new Date(a.getDue()) > new Date(b.getDue());
+		}).forEach(function(task){
+			var due = fecha.format(new Date(task.getDue()), 'shortDate');
+			var assigned = task.getAssigned().map(function(user){
+				return '<@' + user + '>';
+			}).join(' ');
+			if (!assigned.length) assigned = '_*none*_'; 
+
+			bot.reply(message, {
+				text: [
+					'_(' + task.getId() + ')_ ⋅ *' + due + '* ⋅ ' + 	assigned + ' (*' + task.getStatus() + '*)',
+					'> ' + task.getDescription()
+				].join('\n')
 			});
+		});
 
-			tasks.sort(function(a, b){
-				return new Date(a.due) > new Date(b.due);
-			}).forEach(function(task){
-				if (!task.assigned) task.assigned = [];
-				if (!task.assigned.pop) task.assigned = task.assigned.replace(/[<>@ ]/g, '').split(',');
-
-				var due = fecha.format(new Date(task.due), 'shortDate');
-				var assigned = !task.assigned.length ? '_*none*_' : task.assigned.map(function(user){
-					return '<@' + user + '>';
-				}).join(' ');
-
-				bot.reply(message, {
-					text: [
-						'_(' + task.id + ')_ ⋅ *' + due + '* ⋅ ' + 	assigned + ' (*' + task.status + '*)',
-						'> ' + task.description
-					].join('\n')
-				});
-			});
-
-			controller.trigger('task.list');
-		} else {
-			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
-		}
+		controller.trigger('task.list');
 	});
 });
 
@@ -163,41 +150,33 @@ controller.hears(['^(finish)|(done)|(complete)'], ALL, function(bot, message) {
 	var id = (match(message.text, /(\d+)$/i)[1] || '').trim();
 	if (!id) return bot.reply(message, 'You need to provide a task id.');
 
-	storage.channels.get(message.channel, function(err, channel){
-		if (!channel) channel = {tasks: []};
-		
-		if (channel.tasks && channel.tasks.length){
-			var task = channel.tasks.filter(function(task){
-				return task.id == id;
-			})[0];
+	Channel.findOrCreate(message.channel).then(function(channel){
+		var tasks = channel.getTasks();
+		if (!tasks.count()) return bot.reply(message, 'No tasks recorded. "@task help" for usage.');
 
-			if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
+		var task = tasks.find(id);
+		if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
-			var task = channel.tasks[id * 1];
-			task.status = 'done';
-			task.doneBy = message.user;
-			task.updated = Date.now();
+		task.setStatus('done');
+		task.setDoneBy(message.user);
 
-			storage.channels.save(channel, function(err, channel){
-				bot.reply(message, 'Updated task (' + id + ').');
+		channel.save().then(function(){
+			bot.reply(message, 'Updated task (' + task.getId() + ').');
+			controller.trigger('task.done', [task]);
 
-				if (TRACK) client.addEvent('dones', {
-					channel: message.channel,
-					task_id: task.id,
-					section: task.section,
-					due: new Date(task.due).toISOString(),
-					delta: Date.now() - Number(new Date(task.due)),
-					assigned: task.assigned,
-					doneBy: task.doneBy
+			if (TRACK) channel.getName().then(function(name){
+				client.addEvent('dones', {
+					channel: name,
+					task_id: task.getId(),
+					section: task.getSection(),
+					due: new Date(task.getDue()).toISOString(),
+					delta: Date.now() - Number(new Date(task.getDue())),
+					assigned: task.getAssigned(),
+					doneBy: task.getDoneBy()
 				});
-
-				controller.trigger('task.done', [task]);
-			});
-
-		} else {
-			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
-		}
-	});
+			}).done();
+		}).done();
+	}).done();
 });
 
 
@@ -205,48 +184,31 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 	var id = (match(message.text, /(\d+)/i)[1] || '').trim();
 	if (!id) return bot.reply(message, 'You need to provide a task id.');
 
-	var assign = match(message.text, /<@([^>]+)>/ig).map(function(user){
-		return user.replace(/[<>@]/g, '');
-	});
+	var assign = match(message.text, /<@([^>]+)>/ig).map(User.cleanId);
 	if (!assign.length) assign = [message.user];
 
-	storage.channels.get(message.channel, function(err, channel){
-		if (!channel) channel = {tasks: []};
-		
-		if (channel.tasks && channel.tasks.length){
-			var index = -1;
-			
-			channel.tasks.some(function(task, i){
-				controller.log(task.id + ', i: ' + i);
-				if (task.id == id) {
-					index = i;
-					return true;
-				}
-			});
+	Channel.findOrCreate(message.channel).then(function(channel){
+		var tasks = channel.getTasks();
+		if (!tasks.count()) return bot.reply(message, 'No tasks recorded. "@task help" for usage.');
 
-			if (index == -1) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
+		var task = tasks.find(id);
+		if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
-			var task = channel.tasks[index];
-			task.assigned = Array.include(task.assigned, assign);
-			task.updated = Date.now();
+		task.addAssigned(assign);
 
-			storage.channels.save(channel, function(err, channel){
-				bot.reply(message, 'Updated task (' + id + ').');
+		channel.save().then(function(){
+			bot.reply(message, 'Updated task (' + id + ').');
+			controller.trigger('task.assign', [task]);
 
-				if (TRACK) client.addEvent('assigns', {
-					channel: message.channel,
-					task_id: task.id,
+			if (TRACK) channel.getName().then(function(name){
+				client.addEvent('assigns', {
+					channel: name,
+					task_id: task.getId(),
 					helper: message.user
 				});
-
-				controller.trigger('task.assign', [task]);
 			});
-
-		} else {
-			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
-		}
+		})
 	});
-
 });
 
 
@@ -254,47 +216,31 @@ controller.hears(['^(abandon)|(drop)'], ALL, function(bot, message){
 	var id = (match(message.text, /(\d+)/i)[1] || '').trim();
 	if (!id) return bot.reply(message, 'You need to provide a task id.');
 
-	var assign = match(message.text, /<@([^>]+)>/ig).map(function(user){
-		return user.replace(/[<>@]/g, '');
-	});
+	var assign = match(message.text, /<@([^>]+)>/ig).map(User.cleanId);
 	if (!assign.length) assign = [message.user];
 
-	storage.channels.get(message.channel, function(err, channel){
-		if (!channel) channel = {tasks: []};
-		
-		if (channel.tasks && channel.tasks.length){
-			var index = -1;
-			
-			channel.tasks.some(function(task, i){
-				if (task.id == id) {
-					index = i;
-					return true;
-				}
-			});
+	Channel.findOrCreate(message.channel).then(function(channel){
+		var tasks = channel.getTasks();
+		if (!tasks.count()) return bot.reply(message, 'No tasks recorded. "@task help" for usage.');
 
-			if (index == -1) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
+		var task = tasks.find(id);
+		if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
-			var task = channel.tasks[index];
-			task.assigned = Array.exclude(task.assigned, assign);
-			task.updated = Date.now()
+		task.removeAssigned(assign);
 
-			storage.channels.save(channel, function(err){
-				bot.reply(message, 'Updated task (' + id + ').');
+		channel.save().then(function(){
+			bot.reply(message, 'Updated task (' + id + ').');
+			controller.trigger('task.drop', [task]);
 
-				if (TRACK) client.addEvent('abandons', {
-					channel: channel.id,
-					task_id: task.id,
+			if (TRACK) channel.getName().then(function(name){
+				client.addEvent('abandons', {
+					channel: name,
+					task_id: task.getId(),
 					runaway: message.user
 				});	
-
-				controller.trigger('task.drop', [task]);
-			});
-
-		} else {
-			bot.reply(message, 'No tasks recorded. "@task help" for usage.');
-		}
-	});
-
+			}).done();
+		}).done();
+	}).done();
 });
 
 

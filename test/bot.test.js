@@ -184,8 +184,8 @@ describe('TaskBot', function() {
 			bot.controller.on('task.done', function(task){
 				(/Updated.*task/i).test(stub.reply.secondCall).should.be.true();
 
-				task.id.should.be.exactly(id);
-				task.status.should.be.exactly('done');
+				task.getId().should.be.exactly(id);
+				task.getStatus().should.be.exactly('done');
 				done();
 			});
 
@@ -203,9 +203,9 @@ describe('TaskBot', function() {
 			bot.controller.on('task.assign', function(task){
 				(/Updated.*task/i).test(stub.reply.secondCall).should.be.true();
 
-				task.id.should.be.exactly(id);
-				task.assigned.should.be.containEql('mochauser');
-				task.assigned.length.should.be.exactly(2);
+				task.getId().should.be.exactly(id);
+				task.getAssigned().should.be.containEql('mochauser');
+				task.getAssigned().length.should.be.exactly(2);
 				done();
 			});
 
@@ -223,9 +223,9 @@ describe('TaskBot', function() {
 			bot.controller.on('task.assign', function(task){
 				(/Updated.*task/i).test(stub.reply.secondCall).should.be.true();
 
-				task.id.should.be.exactly(id);
-				task.assigned.should.be.containEql('otheruser');
-				task.assigned.length.should.be.exactly(2);
+				task.getId().should.be.exactly(id);
+				task.getAssigned().should.be.containEql('otheruser');
+				task.getAssigned().length.should.be.exactly(2);
 				done();
 			});
 
@@ -243,9 +243,9 @@ describe('TaskBot', function() {
 			bot.controller.on('task.assign', function(task){
 				(/Updated.*task/i).test(stub.reply.secondCall).should.be.true();
 
-				task.id.should.be.exactly(id);
-				task.assigned.should.containEql('mochauser');
-				task.assigned.length.should.be.exactly(1);
+				task.getId().should.be.exactly(id);
+				task.getAssigned().should.containEql('mochauser');
+				task.getAssigned().length.should.be.exactly(1);
 				done();
 			});
 
@@ -263,8 +263,8 @@ describe('TaskBot', function() {
 			bot.controller.on('task.drop', function(task){
 				(/Updated.*task/i).test(stub.reply.secondCall).should.be.true();
 
-				task.id.should.be.exactly(id);
-				task.assigned.length.should.be.exactly(0);
+				task.getId().should.be.exactly(id);
+				task.getAssigned().length.should.be.exactly(0);
 				done();
 			});
 
@@ -283,9 +283,9 @@ describe('TaskBot', function() {
 			bot.controller.on('task.drop', function(task){
 				(/Updated.*task/i).test(stub.reply.secondCall).should.be.true();
 
-				task.id.should.be.exactly(id);
-				task.assigned.should.containEql('mochauser');
-				task.assigned.length.should.be.exactly(1);
+				task.getId().should.be.exactly(id);
+				task.getAssigned().should.containEql('mochauser');
+				task.getAssigned().length.should.be.exactly(1);
 				done();
 			});
 
