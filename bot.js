@@ -63,7 +63,7 @@ controller.hears(['^add'], ALL, function(bot, message) {
 					description: task.getDescription(),
 					section: task.getSection(),
 					due: new Date(task.getDue()).toISOString(),
-					assigned: task.getAssigned(),
+					assigned: task.getAssigned().toObject(),
 					creator: task.getCreator(),
 					created: task.getCreated(),
 					updated: task.getUpdated()
@@ -116,7 +116,6 @@ controller.hears(['^update'], ALL, function(bot, message) {
 
 });
 
-
 controller.hears(['^list'], ALL, function(bot, message) {
 	var filter = !(match(message.text, /(all)$/i)[1] || '').trim()
 
@@ -142,7 +141,7 @@ controller.hears(['^list'], ALL, function(bot, message) {
 		});
 
 		controller.trigger('task.list');
-	});
+	}).done();
 });
 
 
@@ -171,7 +170,7 @@ controller.hears(['^(finish)|(done)|(complete)'], ALL, function(bot, message) {
 					section: task.getSection(),
 					due: new Date(task.getDue()).toISOString(),
 					delta: Date.now() - Number(new Date(task.getDue())),
-					assigned: task.getAssigned(),
+					assigned: task.getAssigned().toObject(),
 					doneBy: task.getDoneBy()
 				});
 			}).done();
@@ -194,7 +193,7 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 		var task = tasks.find(id);
 		if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
-		task.addAssigned(assign);
+		task.getAssigned().add(assign);
 
 		channel.save().then(function(){
 			bot.reply(message, 'Updated task (' + id + ').');
@@ -206,9 +205,9 @@ controller.hears(['^(aid)|(assists?)|(assign)'], ALL, function(bot, message){
 					task_id: task.getId(),
 					helper: message.user
 				});
-			});
-		})
-	});
+			}).done();
+		}).done();
+	}).done();
 });
 
 
@@ -226,7 +225,7 @@ controller.hears(['^(abandon)|(drop)'], ALL, function(bot, message){
 		var task = tasks.find(id);
 		if (!task) return bot.reply(message, 'Could not find the task, by the id: ' + id + '. Try @task list again.');
 
-		task.removeAssigned(assign);
+		task.getAssigned().remove(assign);
 
 		channel.save().then(function(){
 			bot.reply(message, 'Updated task (' + id + ').');
@@ -297,27 +296,6 @@ function match(string, regexp){
 	return string.match(regexp) || [];
 }
 
-JSON.format = function(object){
-	return JSON.stringify(object, null, '\t');
-};
-
-Array.include = function(array, value){
-	if (!value.pop) value = [value];
-	value.forEach(function(val){
-		if (array.indexOf(val) < 0) array.push(val);
-	});
-	return array;
-};
-
-Array.exclude = function(array, value){
-	if (!value.pop) value = [value];
-	value.forEach(function(val){
-		var index = array.indexOf(val);
-		if (index > -1) array.splice(index, 1);
-	});
-	return array;
-};
-
 Object.merge = function(target, source){
 	[].slice.call(arguments, 1).forEach(function(source){
 		for (var key in source) if (key in source) target[key] = source[key];
@@ -327,5 +305,5 @@ Object.merge = function(target, source){
 
 module.exports = {
 	app: app,
-	controller: controller,
+	controller: controller
 };
