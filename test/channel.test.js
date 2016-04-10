@@ -94,7 +94,7 @@ describe('Channel model', function(){
 	it('should add a task', function(done){
 		var channel = new Channel({id: 'ChannelTest', name: 'Channel Test'});
 		var task = new Task({description: 'test task'});
-		channel.addTask(task);
+		task.addTo(channel);
 		channel.save().then(function(){
 			var object = channel.toObject();
 			object.tasks[0].id.should.be.exactly(0);
@@ -106,10 +106,10 @@ describe('Channel model', function(){
 	it('should multiple tasks', function(done){
 		var channel = new Channel({id: 'ChannelMultipleTasks', name: 'Channel multiple tasks'});
 		var task1 = new Task({description: 'test task 1'});
-		channel.addTask(task1);
+		task1.addTo(channel);
 		channel.save().then(function(){
 			var task2 = new Task({description: 'test task 2'});
-			channel.addTask(task2);
+			task2.addTo(channel);
 			channel.save().then(function(){
 				var object = channel.toObject();
 

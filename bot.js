@@ -51,7 +51,7 @@ controller.hears(['^add'], ALL, function(bot, message) {
 	var task = Task.fromMessage(message);
 
 	Channel.findOrCreate(message.channel).then(function(channel){
-		channel.addTask(task);
+		task.addTo(channel);
 		channel.save().then(function(){
 			bot.reply(message, 'Task (id: ' + task.getId() + ') added.');
 			controller.trigger('task.added', [task]);
@@ -254,6 +254,8 @@ var livereload = require('express-livereload');
 var app = express();
 var http = require('http');
 
+app.locals.moment = require('moment');
+
 livereload(app, {watchDir: 'views'});
 
 app.set('view engine', 'jade');
@@ -265,15 +267,17 @@ var secure = function(req, res, next){
 	else res.redirect('http://www.codergv.org/');
 };
 
+
 app.get('/board', secure, function(req, res){
-	storage.channels.all(function(err, channels){
+	
+	Channel.all().then(function(channels){
 		res.render('board', {
-			channels: channels,
-			columns: COLUMNS,
+			channels: channels.toObject(),
 			KEEN_ID: config('KEEN_ID'),
-			KEEN_READ: config('KEEN_READ')
+			KEEN_READ: config('KEEN_READ'),
 		});
 	});
+
 });
 
 app.get('*', function(req, res){

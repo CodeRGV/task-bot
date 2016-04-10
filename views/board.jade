@@ -49,13 +49,20 @@ html
 									table(class='table table-hover')
 										thead
 											tr
-												each column in columns
-													th(class='column ' + column)= column
+												th id
+												th description
+												th assigned
+												th due
+												th creator
 										tbody
 											each task in channel.tasks
 												tr
-													each column in columns
-														td= task[column]
+													td= task.id
+													td= task.description
+													td= (task.assigned || []).map(function(user){ return user.name || ''; }).join(', ')
+													td= moment(task.due).format('MM/DD/YYYY')
+													td= task.creator
+
 				div(class='col-sm-5')
 					div(class='chart-wrapper')
 						div(class='chart-title') New Tasks by Channel
