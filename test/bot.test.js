@@ -72,7 +72,7 @@ describe('TaskBot', function() {
 				task.due.should.be.above(now);
 				task.due.should.be.above(date('in 7 days') - hour);
 				task.assigned.should.be.containEql({id: 'mochauser'});
-				task.creator.should.be.exactly('mochauser');
+				task.creator.id.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
@@ -95,7 +95,7 @@ describe('TaskBot', function() {
 				task.due.should.be.above(now);
 				task.due.should.be.above(date('in 7 days') - hour);
 				task.assigned.should.be.containEql({id: 'mochauser'});
-				task.creator.should.be.exactly('mochauser');
+				task.creator.id.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
@@ -118,7 +118,7 @@ describe('TaskBot', function() {
 				task.due.should.be.above(date('in 3 days') - hour);
 				task.due.should.be.below(date('in 4 days'));
 				task.assigned.should.be.containEql({id: 'mochauser'});
-				task.creator.should.be.exactly('mochauser');
+				task.creator.id.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
@@ -141,7 +141,7 @@ describe('TaskBot', function() {
 				task.due.should.be.above(date('in 7 days') - hour);
 				task.assigned.should.be.containEql({id: 'otheruser'});
 				task.assigned.length.should.be.exactly(1);
-				task.creator.should.be.exactly('mochauser');
+				task.creator.id.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
@@ -165,7 +165,7 @@ describe('TaskBot', function() {
 				task.assigned.should.be.containEql({id: 'anotheruser'});
 				task.assigned.should.be.containEql({id: 'otheruser'});
 				task.assigned.length.should.be.exactly(2);
-				task.creator.should.be.exactly('mochauser');
+				task.creator.id.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
