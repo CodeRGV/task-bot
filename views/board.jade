@@ -59,9 +59,9 @@ html
 												tr
 													td= task.id
 													td= task.description
-													td= (task.assigned || []).map(function(user){ return user.name || ''; }).join(', ')
+													td= task.assigned && task.assigned.map(function(user){ return user.name; }).join(', ')
 													td= moment(task.due).format('MM/DD/YYYY')
-													td= task.creator.name
+													td= task.creator && task.creator.name
 
 				div(class='col-sm-5')
 					div(class='chart-wrapper')

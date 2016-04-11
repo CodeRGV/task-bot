@@ -88,7 +88,7 @@ describe('Channel model', function(){
 		new Channel({id: id}).getName().then(function(name){
 			name.should.be.exactly(test);
 			done();
-		});
+		}).done();
 	});
 
 	it('should add a task', function(done){

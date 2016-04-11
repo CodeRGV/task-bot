@@ -71,8 +71,8 @@ describe('TaskBot', function() {
 				task.section.should.be.exactly('all');
 				task.due.should.be.above(now);
 				task.due.should.be.above(date('in 7 days') - hour);
-				task.assigned.should.be.containEql({id: 'mochauser'});
-				task.creator.id.should.be.exactly('mochauser');
+				task.assigned[0].id.should.be.containEql('mochauser');
+				task.creator.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
@@ -94,8 +94,8 @@ describe('TaskBot', function() {
 				task.section.should.be.exactly('section-test');
 				task.due.should.be.above(now);
 				task.due.should.be.above(date('in 7 days') - hour);
-				task.assigned.should.be.containEql({id: 'mochauser'});
-				task.creator.id.should.be.exactly('mochauser');
+				task.assigned[0].id.should.be.containEql('mochauser');
+				task.creator.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
@@ -117,8 +117,8 @@ describe('TaskBot', function() {
 				task.due.should.be.above(now);
 				task.due.should.be.above(date('in 3 days') - hour);
 				task.due.should.be.below(date('in 4 days'));
-				task.assigned.should.be.containEql({id: 'mochauser'});
-				task.creator.id.should.be.exactly('mochauser');
+				task.assigned[0].id.should.be.containEql('mochauser');
+				task.creator.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
@@ -139,9 +139,9 @@ describe('TaskBot', function() {
 				task.section.should.be.exactly('all');
 				task.due.should.be.above(now);
 				task.due.should.be.above(date('in 7 days') - hour);
-				task.assigned.should.be.containEql({id: 'otheruser'});
+				task.assigned[0].id.should.be.containEql('otheruser');
 				task.assigned.length.should.be.exactly(1);
-				task.creator.id.should.be.exactly('mochauser');
+				task.creator.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
@@ -162,10 +162,10 @@ describe('TaskBot', function() {
 				task.section.should.be.exactly('all');
 				task.due.should.be.above(now);
 				task.due.should.be.above(date('in 7 days') - hour);
-				task.assigned.should.be.containEql({id: 'anotheruser'});
-				task.assigned.should.be.containEql({id: 'otheruser'});
+				task.assigned[0].id.should.be.containEql('otheruser');
+				task.assigned[1].id.should.be.containEql('anotheruser');
 				task.assigned.length.should.be.exactly(2);
-				task.creator.id.should.be.exactly('mochauser');
+				task.creator.should.be.exactly('mochauser');
 				task.status.should.be.exactly('due');
 
 				done();
@@ -205,7 +205,7 @@ describe('TaskBot', function() {
 
 				task.getId().should.be.exactly(id);
 				var assigned = task.getAssigned().toObject();
-				assigned.should.be.containEql({id: 'mochauser'});
+				assigned[1].id.should.be.containEql('mochauser');
 				assigned.length.should.be.exactly(2);
 				done();
 			});
@@ -225,8 +225,9 @@ describe('TaskBot', function() {
 				(/Updated.*task/i).test(stub.reply.secondCall).should.be.true();
 
 				task.getId().should.be.exactly(id);
-				task.getAssigned().toObject().should.be.containEql({id: 'otheruser'});
-				task.getAssigned().toObject().length.should.be.exactly(2);
+				var assigned = task.getAssigned().toObject();
+				assigned[1].id.should.be.containEql('otheruser');
+				assigned.length.should.be.exactly(2);
 				done();
 			});
 
@@ -245,9 +246,9 @@ describe('TaskBot', function() {
 				(/Updated.*task/i).test(stub.reply.secondCall).should.be.true();
 
 				task.getId().should.be.exactly(id);
-				var assigned = task.getAssigned();
-				task.getAssigned().toObject().should.containEql({id: 'mochauser'});
-				task.getAssigned().toObject().length.should.be.exactly(1);
+				var assigned = task.getAssigned().toObject();
+				assigned[0].id.should.containEql('mochauser');
+				assigned.length.should.be.exactly(1);
 				done();
 			});
 
@@ -286,8 +287,9 @@ describe('TaskBot', function() {
 				(/Updated.*task/i).test(stub.reply.secondCall).should.be.true();
 
 				task.getId().should.be.exactly(id);
-				task.getAssigned().toObject().should.containEql({id: 'mochauser'});
-				task.getAssigned().toObject().length.should.be.exactly(1);
+				var assigned = task.getAssigned().toObject();
+				assigned[0].id.should.containEql('mochauser');
+				assigned.length.should.be.exactly(1);
 				done();
 			});
 
@@ -325,7 +327,7 @@ describe('TaskBot', function() {
 			bot.controller.on('task.updated', function(task){
 				task = task.toObject();
 				task.description.should.be.exactly('task for adjusted update');
-				task.updatedBy.should.be.exactly('mochauser');
+				task.updatedBy.id.should.be.exactly('mochauser');
 
 				done();
 			});
@@ -340,7 +342,7 @@ describe('TaskBot', function() {
 
 			bot.controller.on('task.updated', function(task){
 				task = task.toObject();
-				task.assigned.should.be.containEql({id: 'otheruser'});
+				task.assigned[0].id.should.be.containEql('otheruser');
 				task.assigned.length.should.be.exactly(1);
 				done();
 			});
@@ -385,8 +387,8 @@ describe('TaskBot', function() {
 			bot.controller.on('task.updated', function(task){
 				task = task.toObject();
 				task.description.should.be.exactly('new description');
-				task.assigned.should.be.containEql({id: 'otheruser'});
-				task.assigned.should.be.containEql({id: 'another'});
+				task.assigned[0].id.should.be.containEql('otheruser');
+				task.assigned[1].id.should.be.containEql('another');
 				task.assigned.length.should.be.containEql(2);
 				task.due.should.be.above(date('in 3 days'));
 				task.due.should.be.below(date('in 5 days'));

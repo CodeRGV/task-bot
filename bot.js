@@ -271,12 +271,14 @@ var secure = function(req, res, next){
 app.get('/board', secure, function(req, res){
 	
 	Channel.all().then(function(channels){
-		res.render('board', {
-			channels: channels.toObject(),
-			KEEN_ID: config('KEEN_ID'),
-			KEEN_READ: config('KEEN_READ'),
-		});
-	});
+		channels.waitForPending().then(function(){
+			res.render('board', {
+				channels: channels.toObject(),
+				KEEN_ID: config('KEEN_ID'),
+				KEEN_READ: config('KEEN_READ'),
+			})
+		}).done();
+	}).done();
 
 });
 
